@@ -1,0 +1,93 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# Configure the AWS Provider
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Create a VPC
+resource "aws_vpc" "example" {
+  cidr_block = "10.0.0.0/16"
+}
+resource "aws_vpc" "main" {
+  cidr_block       = "10.0.0.0/16"
+  tags = {
+    Name = "main"
+  }
+}
+resource "aws_subnet" "pubsubnet" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "publicsubnet"
+  }
+}
+resource "aws_subnet" "main" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.2.0/24"
+
+  tags = {
+    Name = "privatesubnet"
+  }
+}
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "internetgateway"
+  }
+}
+
+resource "aws_route_table" "pub rt" {
+  vpc_id = aws_vpc.test.id
+
+  # since this is exactly the route AWS will create, the route will be adopted
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "local"
+  }
+  tags = {
+    Name = "pub rt table"
+  }
+}
+
+resource "aws_route_table_association" "route table association" {
+  subnet_id      = aws_subnet.publicsubnet.id
+  route_table_id = aws_route_table.bar.id
+}
+resource "aws_route_table" "pvt rt" {
+  vpc_id = aws_vpc.test.id
+
+  # since this is exactly the route AWS will create, the route will be adopted
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "local"
+  }
+  tags = {
+    Name = "pvt rt table"
+  }
+}
+resource "aws_route_table_association" "route table association" {
+  subnet_id      = aws_subnet.privatesubnet.id
+  route_table_id = aws_route_table.bar.id
+
+resource "aws_nat_gateway" "example" {
+  allocation_id = aws_eip.example.id
+  subnet_id     = aws_subnet.publicsubnet.id
+
+  tags = {
+    Name = "gw NAT"
+  }
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.example]
+}
